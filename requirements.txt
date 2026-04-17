@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pydantic
+pydub
+pyannote.audio
+speechbrain
+whisper
+ollama
+python-dotenv
+numpy
+scipy
+python-multipart
+torchaudio
