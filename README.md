@@ -134,7 +134,19 @@ Audio File (Bangla conversation)
 
 ### Audio Processing
 - `POST /api/upload-audio` - Upload and process audio conversation
-
+- Accepts a multipart form upload with doctor_id (form field) and audio_file (file).
+  - Saves the uploaded file to audio_files/<uuid>.<ext> (defaults to .wav if no extension).
+  - If DOCENTRIC_SKIP_AUDIO_PROCESSING=1 (or under pytest), skips processing and uses empty transcript/segments; otherwise:
+      - Runs audio processing (language hardcoded to "bn") to get speaker diarization info, a patient voice embedding, and a transcript.
+  - Uses the transcript (if present) to:
+      - Extract patient info via llm_service.extract_patient_info(...).
+      - Generate a visit summary via llm_service.summarize_transcript(...).
+  - Determines the patient:
+      - Prefer voice matching via voice_matching_service.find_matching_patient(...) when an embedding exists.
+      - Otherwise tries to match by extracted patient name; else creates a new patient.
+      - Registers/updates the patient’s voice embedding when available.
+  - Creates a Visit row (stores transcript + visit type initial/follow-up), and an AudioRecord row pointing at the saved file.
+  - Returns AudioUploadResponse with patient_id, patient_name, is_new_patient, visit_id, transcript, summary. Errors return HTTP 500 with "Error processing audio: ..."
 ## Usage
 
 ### 1. Setup Environment
