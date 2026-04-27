@@ -30,8 +30,30 @@ class AudioProcessor:
 
     def load_whisper(self, model_size: str = "base"):
         if self.whisper_model is None:
-            import whisper
-            self.whisper_model = whisper.load_model(model_size)
+            # OpenAI Whisper is installed as `openai-whisper` but imported as `whisper`.
+            # There is also a different PyPI package named `whisper` that does not
+            # provide `load_model`. Detect and fail with an actionable error.
+            import whisper as whisper_module
+            if not hasattr(whisper_module, "load_model"):
+                module_path = getattr(whisper_module, "__file__", "unknown")
+                raise RuntimeError(
+                    "Whisper import resolved to a package without `load_model` "
+                    f"(imported from {module_path}). "
+                    "Fix by uninstalling `whisper` and installing `openai-whisper`."
+                )
+            download_root = os.getenv("WHISPER_DOWNLOAD_ROOT", "pretrained_models/whisper")
+            os.makedirs(download_root, exist_ok=True)
+            try:
+                self.whisper_model = whisper_module.load_model(
+                    model_size, download_root=download_root
+                )
+            except Exception as e:
+                raise RuntimeError(
+                    "Failed to load Whisper model weights. "
+                    f"Model='{model_size}', download_root='{download_root}'. "
+                    "If this is the first run, Whisper needs internet access to download weights "
+                    "(or you must pre-populate that folder)."
+                ) from e
         return self.whisper_model
 
     def process_audio(
@@ -43,7 +65,16 @@ class AudioProcessor:
         diarization_pipeline = self.load_diarization()
         waveform = self._load_audio(audio_path)
 
-        diarization = diarization_pipeline(audio_path)
+        diarization_result = diarization_pipeline(audio_path)
+
+        # pyannote.audio >= 4 returns `DiarizeOutput` (with `.speaker_diarization`)
+        # while older versions returned an `Annotation` directly.
+        if hasattr(diarization_result, "exclusive_speaker_diarization"):
+            diarization = diarization_result.exclusive_speaker_diarization
+        elif hasattr(diarization_result, "speaker_diarization"):
+            diarization = diarization_result.speaker_diarization
+        else:
+            diarization = diarization_result
 
         patient_segments = []
         doctor_segments = []

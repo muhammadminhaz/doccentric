@@ -13,7 +13,7 @@ opentelemetry-instrumentation-sqlalchemy
 pydub
 pyannote.audio
 speechbrain
-whisper
+openai-whisper
 ollama
 python-dotenv
 numpy
