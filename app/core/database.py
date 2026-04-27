@@ -7,7 +7,12 @@ DATABASE_URL = os.getenv(
     "postgresql://postgres:postgres@localhost:5432/doccentric"
 )
 
-engine = create_engine(DATABASE_URL)
+connect_args = {}
+if DATABASE_URL.startswith("postgresql://") or DATABASE_URL.startswith("postgresql+"):
+    # Avoid long hangs if DB isn't reachable (common in local dev/tests).
+    connect_args = {"connect_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "2"))}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

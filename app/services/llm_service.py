@@ -1,6 +1,12 @@
 import ollama
 from typing import Optional
 
+from app.core.logging import get_logger, log_timing
+from app.core.observability import get_tracer
+
+logger = get_logger(__name__)
+tracer = get_tracer(__name__)
+
 
 class LLMService:
     def __init__(self, model: str = "phi4-mini"):
@@ -17,6 +23,16 @@ class LLMService:
         self,
         transcript: str,
         prompt: Optional[str] = None
+    ) -> str:
+        if tracer:
+            with tracer.start_as_current_span("llm.summarize_transcript"):
+                return self._summarize_transcript_impl(transcript, prompt)
+        return self._summarize_transcript_impl(transcript, prompt)
+
+    def _summarize_transcript_impl(
+        self,
+        transcript: str,
+        prompt: Optional[str] = None,
     ) -> str:
         if prompt is None:
             prompt = """You are a medical assistant. Analyze this doctor-patient conversation transcript and extract:
@@ -36,14 +52,25 @@ Transcript:
 
         full_prompt = f"{prompt}{transcript}"
 
-        response = ollama.chat(
-            model=self.model,
-            messages=[{"role": "user", "content": full_prompt}]
-        )
+        with log_timing(logger, "llm_chat_summarize", model=self.model, transcript_len=len(transcript)):
+            response = ollama.chat(
+                model=self.model,
+                messages=[{"role": "user", "content": full_prompt}]
+            )
 
         return response["message"]["content"]
 
     def extract_patient_info(
+        self,
+        transcript: str,
+        existing_info: Optional[dict] = None
+    ) -> dict:
+        if tracer:
+            with tracer.start_as_current_span("llm.extract_patient_info"):
+                return self._extract_patient_info_impl(transcript, existing_info)
+        return self._extract_patient_info_impl(transcript, existing_info)
+
+    def _extract_patient_info_impl(
         self,
         transcript: str,
         existing_info: Optional[dict] = None
@@ -59,10 +86,11 @@ If information is not explicitly stated, leave the field null. Only return valid
 Transcript:
 """
 
-        response = ollama.chat(
-            model=self.model,
-            messages=[{"role": "user", "content": f"{prompt}{transcript}"}]
-        )
+        with log_timing(logger, "llm_chat_extract_info", model=self.model, transcript_len=len(transcript)):
+            response = ollama.chat(
+                model=self.model,
+                messages=[{"role": "user", "content": f"{prompt}{transcript}"}]
+            )
 
         content = response["message"]["content"]
 
@@ -72,10 +100,16 @@ Transcript:
         json_match = re.search(r'\{.*\}', content, re.DOTALL)
         if json_match:
             try:
-                return json.loads(json_match.group())
+                parsed = json.loads(json_match.group())
+                logger.info(
+                    "llm_extract_info_ok",
+                    extra={"fields": sorted(list(parsed.keys())) if isinstance(parsed, dict) else None},
+                )
+                return parsed
             except json.JSONDecodeError:
                 pass
 
+        logger.info("llm_extract_info_failed")
         return {}
 
     def generate_visit_notes(
@@ -84,6 +118,12 @@ Transcript:
         patient_name: str,
         symptoms: str
     ) -> str:
+        if tracer:
+            with tracer.start_as_current_span("llm.generate_visit_notes"):
+                return self._generate_visit_notes_impl(transcript, patient_name, symptoms)
+        return self._generate_visit_notes_impl(transcript, patient_name, symptoms)
+
+    def _generate_visit_notes_impl(self, transcript: str, patient_name: str, symptoms: str) -> str:
         prompt = f"""As a medical scribe, create professional visit notes for a patient consultation.
 
 Patient Name: {patient_name}
@@ -101,10 +141,11 @@ Create structured notes with:
 Return only the structured notes, no preamble.
 """
 
-        response = ollama.chat(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}]
-        )
+        with log_timing(logger, "llm_chat_visit_notes", model=self.model, transcript_len=len(transcript)):
+            response = ollama.chat(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}]
+            )
 
         return response["message"]["content"]
 

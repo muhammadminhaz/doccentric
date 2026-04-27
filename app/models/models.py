@@ -4,6 +4,17 @@ from sqlalchemy.sql import func
 from app.core.database import Base
 
 
+class Doctor(Base):
+    __tablename__ = "doctors"
+
+    # Keep doctor IDs human-friendly (e.g., "BD-DR-0001")
+    id = Column(String(50), primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    specialty = Column(String(255))
+    phone = Column(String(20))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Patient(Base):
     __tablename__ = "patients"
 

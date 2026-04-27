@@ -48,7 +48,7 @@ Content-Type: application/json
 
 {
   "patient_id": 1,
-  "doctor_id": "DR001",
+  "doctor_id": "BD-DR-0001",
   "chief_complaint": "মাথা ব্যথা এবং জ্বর",
   "symptoms": "৩ দিন ধরে উচ্চ জ্বর",
   "diagnosis": "সর্দি",
@@ -68,14 +68,22 @@ GET http://localhost:8000/api/patients/1/visits
 ### Upload Audio (Bangla conversation)
 ### Note: Requires actual audio file
 POST http://localhost:8000/api/upload-audio
-Content-Type: multipart/form-data
+Content-Type: multipart/form-data; boundary=WebAppBoundary
 
-doctor_id: DR001
-audio_file: @sample_conversation.mp3
+--WebAppBoundary
+Content-Disposition: form-data; name="doctor_id"
+
+BD-DR-0001
+--WebAppBoundary
+Content-Disposition: form-data; name="audio_file"; filename="sample_conversation.mp3"
+Content-Type: audio/mpeg
+
+< ./sample_conversation.mp3
+--WebAppBoundary--
 
 ### Upload Audio with curl
 ### curl -X POST "http://localhost:8000/api/upload-audio" \
-###   -F "doctor_id=DR001" \
+###   -F "doctor_id=BD-DR-0001" \
 ###   -F "audio_file=@sample_conversation.mp3"
 
 ### Check Ollama Connection
