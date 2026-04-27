@@ -15,7 +15,7 @@ class AudioProcessor:
             from pyannote.audio import Pipeline
             self.diarization_pipeline = Pipeline.from_pretrained(
                 "pyannote/speaker-diarization-3.1",
-                use_auth_token=os.getenv("HUGGING_FACE_TOKEN")
+                token=os.getenv("HUGGING_FACE_TOKEN")
             )
         return self.diarization_pipeline
 
