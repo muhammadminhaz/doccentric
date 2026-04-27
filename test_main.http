@@ -1,11 +1,82 @@
-# Test your FastAPI endpoints
+### DocCentric API Test File
+### Use with JetBrains HTTP Client or convert to curl
 
-GET http://127.0.0.1:8000/
-Accept: application/json
+### Health Check
+GET http://localhost:8000/health
 
-###
+### Root Endpoint
+GET http://localhost:8000/
 
-GET http://127.0.0.1:8000/hello/User
-Accept: application/json
+### Create Patient (Bangla)
+POST http://localhost:8000/api/patients
+Content-Type: application/json
 
-###
+{
+  "name": "রোগী ১",
+  "age": 45,
+  "gender": "পুরুষ",
+  "phone": "+8801712345678",
+  "email": "patient@example.com",
+  "address": "ঢাকা, বাংলাদেশ",
+  "blood_type": "B+",
+  "allergies": "কোনো অ্যালার্জি নেই",
+  "emergency_contact": "+8801812345678"
+}
+
+### List All Patients
+GET http://localhost:8000/api/patients
+
+### Get Patient by ID
+GET http://localhost:8000/api/patients/1
+
+### Update Patient
+PUT http://localhost:8000/api/patients/1
+Content-Type: application/json
+
+{
+  "name": "আপডেট রোগী",
+  "age": 50,
+  "phone": "+8801712345679"
+}
+
+### Delete Patient
+DELETE http://localhost:8000/api/patients/2
+
+### Create Visit
+POST http://localhost:8000/api/visits
+Content-Type: application/json
+
+{
+  "patient_id": 1,
+  "doctor_id": "DR001",
+  "chief_complaint": "মাথা ব্যথা এবং জ্বর",
+  "symptoms": "৩ দিন ধরে উচ্চ জ্বর",
+  "diagnosis": "সর্দি",
+  "tests": "রক্ত পরীক্ষা",
+  "prescription": "প্যারাসিটামল ৫০০মি.গ্রা.",
+  "suggestions": "বিশ্রাম এবং পানি পান করুন",
+  "notes": "৫ দিন পরে ফলো আপ",
+  "visit_type": "initial"
+}
+
+### Get Visit
+GET http://localhost:8000/api/visits/1
+
+### Get Patient Visits
+GET http://localhost:8000/api/patients/1/visits
+
+### Upload Audio (Bangla conversation)
+### Note: Requires actual audio file
+POST http://localhost:8000/api/upload-audio
+Content-Type: multipart/form-data
+
+doctor_id: DR001
+audio_file: @sample_conversation.mp3
+
+### Upload Audio with curl
+### curl -X POST "http://localhost:8000/api/upload-audio" \
+###   -F "doctor_id=DR001" \
+###   -F "audio_file=@sample_conversation.mp3"
+
+### Check Ollama Connection
+### curl http://localhost:11434/api/tags

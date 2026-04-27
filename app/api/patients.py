@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.models.models import Patient, Visit, AudioRecord
 from app.models.schemas import (
     PatientCreate,
+    PatientUpdate,
     PatientResponse,
     VisitCreate,
     VisitResponse,
@@ -37,13 +38,14 @@ def get_patient(patient_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/patients/{patient_id}", response_model=PatientResponse)
-def update_patient(patient_id: int, patient: PatientCreate, db: Session = Depends(get_db)):
+def update_patient(patient_id: int, patient: PatientUpdate, db: Session = Depends(get_db)):
     db_patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not db_patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
-    for key, value in patient.model_dump().items():
-        setattr(db_patient, key, value)
+    for key, value in patient.model_dump(exclude_unset=True).items():
+        if value is not None:
+            setattr(db_patient, key, value)
 
     db.commit()
     db.refresh(db_patient)

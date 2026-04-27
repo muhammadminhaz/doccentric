@@ -1,6 +1,11 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+
+# Load .env file
+load_dotenv(Path(__file__).parent / ".env")
 from app.core.database import init_db, engine, Base
 from app.api import patients, audio
 

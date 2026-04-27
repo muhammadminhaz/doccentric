@@ -50,7 +50,7 @@ class VoiceEmbedding(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
-    embedding_vector = Column(Float, nullable=False)
+    embedding_vector = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     embedding_version = Column(String(20), default="1.0")
 

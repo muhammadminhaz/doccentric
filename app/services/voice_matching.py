@@ -1,3 +1,4 @@
+import json
 import numpy as np
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
@@ -23,7 +24,7 @@ class VoiceMatchingService:
         best_similarity = 0.0
 
         for voice_embedding in embeddings:
-            stored_vector = np.array(voice_embedding.embedding_vector)
+            stored_vector = json.loads(voice_embedding.embedding_vector)
 
             if isinstance(stored_vector, list):
                 stored_vector = np.array(stored_vector)
@@ -55,7 +56,7 @@ class VoiceMatchingService:
 
         voice_embedding = VoiceEmbedding(
             patient_id=patient_id,
-            embedding_vector=embedding_list,
+            embedding_vector=json.dumps(embedding_list),
             embedding_version=version
         )
 
@@ -93,7 +94,7 @@ class VoiceMatchingService:
         avg_embedding = new_embedding
         if embeddings:
             existing_embeddings = [
-                np.array(e.embedding_vector) for e in embeddings
+                np.array(json.loads(e.embedding_vector)) for e in embeddings
             ]
             all_embeddings = existing_embeddings + [new_embedding]
             avg_embedding = np.mean(all_embeddings, axis=0)
