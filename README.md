@@ -20,7 +20,7 @@ Audio File (Bangla conversation)
 ┌─────────────────────┐
 │  Audio Processor    │
 │  - Diarization      │◄── pyannote/speaker-diarization-3.1
-│  - Transcription    │◄── whisper (base model)
+│  - Transcription    │◄── Gemini 2.5 Flash
 │  - Voice Embeddings │◄── speechbrain/spkrec-ecapa-voxceleb
 └─────────────────────┘
          │
@@ -56,7 +56,7 @@ Audio File (Bangla conversation)
 | Database | PostgreSQL |
 | ORM | SQLAlchemy |
 | Audio Diarization | pyannote.audio 3.1 |
-| Transcription | OpenAI Whisper |
+| Transcription | Gemini 2.5 Flash |
 | Speaker Embedding | SpeechBrain ECAPA-VoxCeleb |
 | LLM | Ollama (phi4-mini) |
 | Language | Bengali (Bangla) + English |
@@ -137,7 +137,7 @@ Audio File (Bangla conversation)
 - Accepts a multipart form upload with doctor_id (form field) and audio_file (file).
   - Saves the uploaded file to audio_files/<uuid>.<ext> (defaults to .wav if no extension).
   - If DOCENTRIC_SKIP_AUDIO_PROCESSING=1 (or under pytest), skips processing and uses empty transcript/segments; otherwise:
-      - Runs audio processing (language hardcoded to "bn") to get speaker diarization info, a patient voice embedding, and a transcript.
+      - Runs audio processing to get speaker diarization info, a patient voice embedding, and a Gemini transcript.
   - Uses the transcript (if present) to:
       - Extract patient info via llm_service.extract_patient_info(...).
       - Generate a visit summary via llm_service.summarize_transcript(...).
@@ -165,8 +165,14 @@ Edit `.env` file:
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/doccentric
 HUGGING_FACE_TOKEN=your_huggingface_token
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_TRANSCRIPTION_MODEL=gemini-2.5-flash
+TRANSCRIPTION_LANGUAGE=bn
+AUDIO_UPLOAD_DIR=audio_files
 OLLAMA_MODEL=phi4-mini
 ```
+
+`TRANSCRIPTION_LANGUAGE=bn` adds Bangla as prompt context while preserving English medical words and code-switched phrases. Set `TRANSCRIPTION_LANGUAGE=` if that bias hurts English-word accuracy.
 
 ### 3. Start Services
 
@@ -203,7 +209,7 @@ python -m pytest tests/ -v
 
 1. **Audio Upload**: Doctor uploads audio file with `doctor_id`
 2. **Diarization**: pyannote identifies different speakers (patient vs doctor)
-3. **Transcription**: Whisper transcribes the Bangla audio to text
+3. **Transcription**: Gemini `gemini-2.5-flash` transcribes mixed Bangla-English audio with a preservation prompt
 4. **Voice Embedding**: SpeechBrain extracts voice embeddings from patient's segments
 5. **Patient Matching**: System checks if patient's voice matches an existing patient
    - If match found → existing patient record
@@ -255,4 +261,5 @@ doccentric/
 - PostgreSQL 12+
 - Ollama (for phi4-mini model)
 - HuggingFace account (for pyannote access)
+- Gemini API key (for transcription)
 - ffmpeg (for audio processing)

@@ -3,6 +3,8 @@ import numpy as np
 from typing import List, Tuple, Optional
 import torch
 
+from app.core.config import HUGGING_FACE_TOKEN, WHISPER_DOWNLOAD_ROOT
+
 
 class AudioProcessor:
     def __init__(self):
@@ -15,7 +17,7 @@ class AudioProcessor:
             from pyannote.audio import Pipeline
             self.diarization_pipeline = Pipeline.from_pretrained(
                 "pyannote/speaker-diarization-3.1",
-                token=os.getenv("HUGGING_FACE_TOKEN")
+                token=HUGGING_FACE_TOKEN
             )
         return self.diarization_pipeline
 
@@ -41,7 +43,7 @@ class AudioProcessor:
                     f"(imported from {module_path}). "
                     "Fix by uninstalling `whisper` and installing `openai-whisper`."
                 )
-            download_root = os.getenv("WHISPER_DOWNLOAD_ROOT", "pretrained_models/whisper")
+            download_root = WHISPER_DOWNLOAD_ROOT
             os.makedirs(download_root, exist_ok=True)
             try:
                 self.whisper_model = whisper_module.load_model(
@@ -60,7 +62,7 @@ class AudioProcessor:
         self,
         audio_path: str,
         min_segment_duration: float = 1.0,
-        language: str = "bn"
+        language: Optional[str] = "bn"
     ) -> Tuple[dict, Optional[np.ndarray], str]:
         diarization_pipeline = self.load_diarization()
         waveform = self._load_audio(audio_path)
@@ -137,10 +139,9 @@ class AudioProcessor:
             return np.mean(embeddings, axis=0)
         return None
 
-    def _transcribe_audio(self, audio_path: str, language: str = "bn") -> str:
-        whisper_model = self.load_whisper()
-        result = whisper_model.transcribe(audio_path, language=language)
-        return result["text"]
+    def _transcribe_audio(self, audio_path: str, language: Optional[str] = "bn") -> str:
+        from app.services.transcription import transcribe_audio_sync
+        return transcribe_audio_sync(audio_path, language=language)
 
 
 audio_processor = AudioProcessor()

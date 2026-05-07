@@ -4,6 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.config import AUDIO_UPLOAD_DIR, DOCENTRIC_SKIP_AUDIO_PROCESSING, TRANSCRIPTION_LANGUAGE
 from app.core.logging import get_logger, log_timing
 from app.core.observability import get_tracer
 from app.models.models import Patient, Visit, AudioRecord, VoiceEmbedding
@@ -16,7 +17,7 @@ router = APIRouter()
 logger = get_logger(__name__)
 tracer = get_tracer(__name__)
 
-UPLOAD_DIR = "audio_files"
+UPLOAD_DIR = AUDIO_UPLOAD_DIR
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
@@ -47,8 +48,8 @@ async def _upload_audio_impl(doctor_id: str, audio_file: UploadFile, db: Session
             extra={"file_name": audio_file.filename, "file_path": file_path},
         )
 
-        language = "bn"
-        if os.getenv("DOCENTRIC_SKIP_AUDIO_PROCESSING") == "1" or os.getenv("PYTEST_CURRENT_TEST"):
+        language = TRANSCRIPTION_LANGUAGE or None
+        if DOCENTRIC_SKIP_AUDIO_PROCESSING == "1" or os.getenv("PYTEST_CURRENT_TEST"):
             logger.info("audio_processing_skipped")
             speaker_info, patient_embedding, transcript = ({"patient_segments": [], "doctor_segments": []}, None, "")
         else:

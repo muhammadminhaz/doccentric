@@ -1,0 +1,43 @@
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ENV_PATH = PROJECT_ROOT / ".env"
+
+
+def load_env() -> None:
+    load_dotenv(dotenv_path=ENV_PATH, override=False)
+
+
+load_env()
+
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/doccentric")
+DB_CONNECT_TIMEOUT = int(os.getenv("DB_CONNECT_TIMEOUT", "2"))
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_TRANSCRIPTION_MODEL = os.getenv("GEMINI_TRANSCRIPTION_MODEL", "gemini-2.5-flash")
+TRANSCRIPTION_LANGUAGE = os.getenv("TRANSCRIPTION_LANGUAGE", "bn")
+
+HUGGING_FACE_TOKEN = os.getenv("HUGGING_FACE_TOKEN")
+WHISPER_DOWNLOAD_ROOT = os.getenv("WHISPER_DOWNLOAD_ROOT", "pretrained_models/whisper")
+WHISPER_DIARIZATION_SCRIPT = os.getenv("WHISPER_DIARIZATION_SCRIPT")
+WHISPER_DIARIZATION_REPO = os.getenv("WHISPER_DIARIZATION_REPO")
+WHISPER_DIARIZATION_NO_STEM = os.getenv("WHISPER_DIARIZATION_NO_STEM", "1")
+WHISPER_DIARIZATION_WHISPER_MODEL = os.getenv("WHISPER_DIARIZATION_WHISPER_MODEL")
+WHISPER_DIARIZATION_DEVICE = os.getenv("WHISPER_DIARIZATION_DEVICE", "cpu")
+
+AUDIO_UPLOAD_DIR = os.getenv("AUDIO_UPLOAD_DIR") or os.getenv("UPLOAD_DIR", "audio_files")
+UPLOAD_DIR = AUDIO_UPLOAD_DIR
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+DOCENTRIC_OTEL_ENABLED = os.getenv("DOCENTRIC_OTEL_ENABLED", "0")
+DOCENTRIC_AUTO_DB_CREATE = os.getenv("DOCENTRIC_AUTO_DB_CREATE", "0")
+DOCENTRIC_SKIP_DB_INIT = os.getenv("DOCENTRIC_SKIP_DB_INIT", "0")
+DOCENTRIC_SEED_DATA = os.getenv("DOCENTRIC_SEED_DATA", "0")
+DOCENTRIC_REQUEST_LOGGING = os.getenv("DOCENTRIC_REQUEST_LOGGING", "1")
+DOCENTRIC_SKIP_AUDIO_PROCESSING = os.getenv("DOCENTRIC_SKIP_AUDIO_PROCESSING", "0")

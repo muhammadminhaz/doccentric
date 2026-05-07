@@ -1,6 +1,7 @@
 import ollama
 from typing import Optional
 
+from app.core.config import OLLAMA_MODEL
 from app.core.logging import get_logger, log_timing
 from app.core.observability import get_tracer
 
@@ -9,7 +10,7 @@ tracer = get_tracer(__name__)
 
 
 class LLMService:
-    def __init__(self, model: str = "phi4-mini"):
+    def __init__(self, model: str = OLLAMA_MODEL):
         self.model = model
 
     def check_connection(self) -> bool:

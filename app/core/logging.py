@@ -1,10 +1,11 @@
 import logging
-import os
 import sys
 import time
 import uuid
 from contextvars import ContextVar
 from typing import Optional
+
+from app.core.config import LOG_LEVEL
 
 
 request_id_var: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
@@ -58,7 +59,7 @@ def _configure_json_logging(level: int) -> None:
 
 
 def setup_logging() -> None:
-    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+    level_name = LOG_LEVEL.upper()
     level = getattr(logging, level_name, logging.INFO)
     _configure_json_logging(level)
 

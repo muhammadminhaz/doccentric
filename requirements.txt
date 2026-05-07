@@ -20,3 +20,7 @@ numpy
 scipy
 python-multipart
 torchaudio
+groq
+google-genai
+aiofiles
+uvicorn
