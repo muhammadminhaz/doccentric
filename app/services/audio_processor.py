@@ -58,6 +58,46 @@ class AudioProcessor:
                 ) from e
         return self.whisper_model
 
+    def extract_voice_features(
+        self,
+        audio_path: str,
+        min_segment_duration: float = 1.0,
+    ) -> Tuple[dict, Optional[np.ndarray]]:
+        """Diarization + voice embedding only. No transcription."""
+        diarization_pipeline = self.load_diarization()
+        waveform = self._load_audio(audio_path)
+
+        diarization_result = diarization_pipeline(audio_path)
+
+        if hasattr(diarization_result, "exclusive_speaker_diarization"):
+            diarization = diarization_result.exclusive_speaker_diarization
+        elif hasattr(diarization_result, "speaker_diarization"):
+            diarization = diarization_result.speaker_diarization
+        else:
+            diarization = diarization_result
+
+        patient_segments = []
+        doctor_segments = []
+
+        for turn, _, speaker in diarization.itertracks(yield_label=True):
+            segment_duration = turn.end - turn.start
+            if segment_duration < min_segment_duration:
+                continue
+
+            if "SPEAKER_01" in speaker:
+                patient_segments.append((turn.start, turn.end))
+            else:
+                doctor_segments.append((turn.start, turn.end))
+
+        patient_embedding = self._extract_embedding(waveform, patient_segments)
+
+        speaker_info = {
+            "patient_segments": patient_segments,
+            "doctor_segments": doctor_segments
+        }
+
+        return speaker_info, patient_embedding
+
     def process_audio(
         self,
         audio_path: str,

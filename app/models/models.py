@@ -22,7 +22,7 @@ class Patient(Base):
     name = Column(String(255), nullable=False)
     age = Column(Integer, nullable=False)
     gender = Column(String(20))
-    phone = Column(String(20), unique=True, index=True)
+    phone = Column(String(20))
     email = Column(String(255))
     address = Column(Text)
     blood_type = Column(String(5))

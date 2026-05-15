@@ -4,14 +4,12 @@ import uuid
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.config import AUDIO_UPLOAD_DIR, DOCENTRIC_SKIP_AUDIO_PROCESSING, TRANSCRIPTION_LANGUAGE
+from app.core.config import AUDIO_UPLOAD_DIR
 from app.core.logging import get_logger, log_timing
 from app.core.observability import get_tracer
-from app.models.models import Patient, Visit, AudioRecord, VoiceEmbedding
+from app.models.models import Patient, Visit, AudioRecord
 from app.models.schemas import AudioUploadResponse
-from app.services.audio_processor import audio_processor
-from app.services.voice_matching import voice_matching_service
-from app.services.llm_service import llm_service
+from app.services.extraction import process_audio_direct
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -48,57 +46,41 @@ async def _upload_audio_impl(doctor_id: str, audio_file: UploadFile, db: Session
             extra={"file_name": audio_file.filename, "file_path": file_path},
         )
 
-        language = TRANSCRIPTION_LANGUAGE or None
-        if DOCENTRIC_SKIP_AUDIO_PROCESSING == "1" or os.getenv("PYTEST_CURRENT_TEST"):
-            logger.info("audio_processing_skipped")
-            speaker_info, patient_embedding, transcript = ({"patient_segments": [], "doctor_segments": []}, None, "")
-        else:
-            with log_timing(logger, "audio_process_start"):
-                speaker_info, patient_embedding, transcript = audio_processor.process_audio(
-                    file_path, language=language
-                )
+        # Single Gemini call: audio -> transcript + patient info + visit data + confidence
+        with log_timing(logger, "gemini_audio_direct_start"):
+            result = await process_audio_direct(file_path)
+            transcript = result.get("transcript", "")
+            extracted_info = result.get("patient", {})
+            visit_data = result.get("visit", {})
+            confidence = result.get("confidence", {})
 
-        extracted_info = {}
-        if transcript:
-            try:
-                extracted_info = llm_service.extract_patient_info(transcript)
-            except Exception:
-                pass
-
+        # Patient matching purely from Gemini-extracted fields (phone unique, name fallback)
         patient = None
         is_new_patient = False
-
-        if patient_embedding is not None:
-            match_result = voice_matching_service.find_matching_patient(
-                db, patient_embedding
-            )
-
-            if match_result:
-                patient, similarity = match_result
-                is_new_patient = False
-            else:
-                is_new_patient = True
-        else:
-            patient_name = extracted_info.get("name")
-            if patient_name:
-                existing_patient = db.query(Patient).filter(
-                    Patient.name == patient_name
-                ).first()
-
-                if existing_patient:
-                    patient = existing_patient
-                    is_new_patient = False
-                else:
-                    is_new_patient = True
-            else:
-                is_new_patient = True
 
         patient_name = extracted_info.get("name") or "Unknown"
         patient_age = extracted_info.get("age") or 0
         patient_phone = extracted_info.get("phone") or None
         patient_gender = extracted_info.get("gender")
 
-        if is_new_patient:
+        if patient_phone:
+            existing = db.query(Patient).filter(
+                Patient.phone == patient_phone
+            ).first()
+            if existing:
+                patient = existing
+                is_new_patient = False
+
+        if patient is None and patient_name != "Unknown":
+            existing = db.query(Patient).filter(
+                Patient.name == patient_name
+            ).first()
+            if existing:
+                patient = existing
+                is_new_patient = False
+
+        if patient is None:
+            is_new_patient = True
             logger.info("patient_create_start")
             patient = Patient(
                 name=patient_name,
@@ -111,16 +93,6 @@ async def _upload_audio_impl(doctor_id: str, audio_file: UploadFile, db: Session
             db.refresh(patient)
             logger.info("patient_created", extra={"patient_id": patient.id})
 
-            if patient_embedding is not None:
-                voice_matching_service.register_voice_embedding(
-                    db, patient.id, patient_embedding
-                )
-        else:
-            if patient_embedding is not None:
-                voice_matching_service.update_embedding(
-                    db, patient.id, patient_embedding
-                )
-
         logger.info(
             "visit_create_start",
             extra={"patient_id": patient.id, "doctor_id": doctor_id, "is_new_patient": is_new_patient},
@@ -129,23 +101,20 @@ async def _upload_audio_impl(doctor_id: str, audio_file: UploadFile, db: Session
             patient_id=patient.id,
             doctor_id=doctor_id,
             transcript=transcript,
-            visit_type="initial" if is_new_patient else "follow-up"
+            visit_type=visit_data.get("visit_type") or ("initial" if is_new_patient else "follow-up"),
+            chief_complaint=visit_data.get("chief_complaint"),
+            symptoms=visit_data.get("symptoms"),
+            diagnosis=visit_data.get("diagnosis"),
+            tests=visit_data.get("tests"),
+            prescription=visit_data.get("prescription"),
+            suggestions=visit_data.get("suggestions"),
+            notes=visit_data.get("notes"),
+            summary=visit_data.get("summary")
         )
         db.add(visit)
         db.commit()
         db.refresh(visit)
         logger.info("visit_created", extra={"visit_id": visit.id, "patient_id": patient.id})
-
-        summary = None
-        if transcript:
-            try:
-                summary = llm_service.summarize_transcript(transcript)
-            except Exception:
-                pass
-
-        if summary:
-            visit.summary = summary
-            db.commit()
 
         audio_record = AudioRecord(
             visit_id=visit.id,
@@ -162,7 +131,8 @@ async def _upload_audio_impl(doctor_id: str, audio_file: UploadFile, db: Session
             is_new_patient=is_new_patient,
             visit_id=visit.id,
             transcript=transcript,
-            summary=summary
+            summary=visit.summary,
+            confidence=confidence
         )
 
     except Exception as e:

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 
 
 class PatientBase(BaseModel):
@@ -85,3 +85,4 @@ class AudioUploadResponse(BaseModel):
     visit_id: int
     transcript: Optional[str] = None
     summary: Optional[str] = None
+    confidence: Optional[dict] = None
